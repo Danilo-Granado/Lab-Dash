@@ -74,6 +74,22 @@ lab_dashboard/
 4. Register the init call in `static/app.js` (inside `applySession`).
 5. Add the test to relevant profiles in `profiles/profiles.json`.
 
+## Standard profiles.json
+
+´´´
+{
+  "product_b": {
+    "display_name": "Product B",
+    "tests": ["moisture"]
+  },
+
+  "product_c": {
+    "display_name": "Product C",
+    "tests": ["viscosity"]
+  }
+}
+´´´
+
 ## Switching to a database
 
 Replace `storage/csv_writer.py` with a new module that exposes the same
