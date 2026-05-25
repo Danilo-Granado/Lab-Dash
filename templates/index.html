@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab Analysis Dashboard</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <!-- ── Top bar ─────────────────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="logo-dot"></span>
+      <span class="logo-text">Lab Analysis Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <span class="po-chip" id="po-chip" style="display:none">
+        PO: <strong id="po-chip-value"></strong>
+      </span>
+      <span class="sys-time" id="sys-time"></span>
+    </div>
+  </header>
+
+  <!-- ── Tab bar ─────────────────────────────────────────────────────────── -->
+  <nav class="tabbar" id="tabbar">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <!-- Equipment tabs injected by app.js once equipment list is loaded -->
+    <button class="tab" data-tab="history">History</button>
+  </nav>
+
+  <!-- ── Tab panels ──────────────────────────────────────────────────────── -->
+  <main class="tab-content">
+
+    <!-- Overview -->
+    <section class="tab-panel active" id="panel-overview">
+      <div id="overview-root"></div>
+    </section>
+
+    <!-- Equipment panels injected dynamically -->
+
+    <!-- History -->
+    <section class="tab-panel" id="panel-history">
+      <div id="history-root"></div>
+    </section>
+
+  </main>
+
+  <!-- ── Confirm & Save modal ─────────────────────────────────────────────── -->
+  <div class="modal-backdrop" id="modal-backdrop" style="display:none">
+    <div class="modal">
+      <h2 class="modal-title">Confirm Result</h2>
+      <div id="modal-body"></div>
+      <div class="modal-fields">
+        <label class="field-label">Operator Notes</label>
+        <textarea id="modal-notes" class="field-input" rows="3"
+                  placeholder="Optional notes…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="modal-confirm">Save Result</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Scripts ─────────────────────────────────────────────────────────── -->
+  <script src="/static/tabs/overview.js"></script>
+  <script src="/static/tabs/viscosity.js"></script>
+  <script src="/static/tabs/moisture.js"></script>
+  <script src="/static/tabs/history.js"></script>
+  <script src="/static/app.js"></script>
+
+</body>
+</html>
