@@ -35,8 +35,8 @@ CMD_STOP_MOTOR     = "STOP_4"
 
 # ── Stability defaults (from stability.py) ────────────────────────────────────
 WINDOW_SIZE              = 15
-STABILITY_THRESHOLD      = 2.5   # % relative range — fixed RPM mode
-STABILITY_THRESHOLD_AUTO = 2.5   # % relative range — auto torque mode
+STABILITY_THRESHOLD      = 1.0   # % relative range — fixed RPM mode
+STABILITY_THRESHOLD_AUTO = 2.0   # % relative range — auto torque mode
 MIN_STABLE_DURATION      = 15.0  # seconds
 MIN_STABLE_DURATION_AUTO = 20.0  # seconds
 

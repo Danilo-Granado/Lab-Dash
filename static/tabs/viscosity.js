@@ -209,18 +209,41 @@ function _viscOnEvent(event) {
 
   if (event.final) {
     _viscLastFinal = d;
-    _viscShowResult(d);
+    _viscShowResult(d);   // async — runs in background, card appears when ready
     _viscResetControls();
     if (_viscSource) { _viscSource.close(); _viscSource = null; }
   }
 }
 
-function _viscShowResult(d) {
+async function _viscShowResult(d) {
+  // Fetch spec for the active profile
+  let qc = { status: 'approved', label: 'No Spec — Pass-through', color: 'var(--text-muted)', inRange: true, spec: null };
+  try {
+    const session = await apiGet('/api/session');
+    const spec    = await apiGet(`/api/specs/${session.profile_key}/viscosity`);
+    qc = evaluateQC(d.viscosity, spec);
+  } catch (_) {}
+
+  _viscLastQC = qc;
+
+  const qcColor = qc.status === 'rejected' ? 'var(--red)' : qc.status === 'approved' && qc.spec?.defined ? 'var(--green)' : 'var(--text-muted)';
+  const qcIcon  = qc.status === 'rejected' ? '✗' : '✓';
+
   const card = document.getElementById('visc-result-card');
   document.getElementById('visc-result-body').innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; padding:10px 14px;
+                background:var(--surface2); border-radius:var(--radius);
+                border:1px solid ${qc.status === 'rejected' ? 'var(--red)' : 'var(--border)'};
+                margin-bottom:16px;">
+      <span style="font-size:22px; color:${qcColor}">${qcIcon}</span>
+      <div>
+        <div style="font-weight:600; color:${qcColor}">${qc.status === 'rejected' ? 'REJECTED' : 'APPROVED'}</div>
+        <div style="font-size:12px; color:var(--text-muted)">${qc.label}</div>
+      </div>
+    </div>
     <div class="grid-3" style="gap:12px; margin-bottom:16px;">
       <div class="stat-tile">
-        <div class="stat-value text-green">${d.viscosity}</div>
+        <div class="stat-value" style="color:${qcColor}">${d.viscosity}</div>
         <div class="stat-label">Viscosity (mPa·s)</div>
       </div>
       <div class="stat-tile">
@@ -239,27 +262,33 @@ function _viscShowResult(d) {
   document.getElementById('visc-discard-btn').onclick = () => { card.style.display = 'none'; };
 }
 
+let _viscLastQC = null;
+
 async function _viscSave() {
   if (!_viscLastFinal) return;
-  const po = (await apiGet('/api/session')).po_number;
+  const session = await apiGet('/api/session');
+  const po = session.po_number;
   if (!po) { _viscAlert('error', 'No PO number set. Go to Overview first.'); return; }
 
   const rows = {
-    'PO Number':      po,
-    'Viscosity':      `${_viscLastFinal.viscosity} mPa·s`,
-    'Final Speed':    `${_viscLastFinal.speed_rpm} RPM`,
-    'Final Torque':   _viscLastFinal.torque != null ? `${_viscLastFinal.torque} %` : 'N/A',
+    'PO Number':    po,
+    'Viscosity':    `${_viscLastFinal.viscosity} mPa·s`,
+    'Final Speed':  `${_viscLastFinal.speed_rpm} RPM`,
+    'Final Torque': _viscLastFinal.torque != null ? `${_viscLastFinal.torque} %` : 'N/A',
   };
 
-  const { confirmed, notes } = await showSaveModal('Viscosity', rows);
+  const { confirmed, notes, approval_status, override_justification } =
+    await showSaveModal('Viscosity', rows, _viscLastQC);
   if (!confirmed) return;
 
   try {
     await apiPost('/storage/save', {
-      po_number: po,
-      test_id:   'viscosity',
-      values:    _viscLastFinal,
+      po_number:              po,
+      test_id:                'viscosity',
+      values:                 _viscLastFinal,
       notes,
+      approval_status,
+      override_justification,
     });
     _viscAlert('success', 'Result saved.');
     document.getElementById('visc-result-card').style.display = 'none';

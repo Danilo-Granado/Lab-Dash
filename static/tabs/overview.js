@@ -149,7 +149,7 @@ async function _onStartSession() {
     return;
   }
 
-  await applySession({ poNumber: po, selectedTests: selected });
+  await applySession({ poNumber: po, selectedTests: selected, profileKey: document.getElementById('ov-profile').value || 'default' });
   _updateSessionSummary(po, selected);
   _showAlert('ov-session-alert', 'success', 'Session started. Switch to an equipment tab to begin testing.');
 }

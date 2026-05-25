@@ -16,6 +16,7 @@ state = {
     # Set by the user in the Overview tab
     "po_number":    "",
     "active_tests": [],          # list of test_ids currently enabled
+    "profile_key":  "default",   # active profile key from profiles.json
 
     # Port config — initialised from config.py defaults
     "ports": dict(DEFAULT_PORTS),
@@ -40,6 +41,12 @@ def get_active_tests() -> list:
 
 def set_active_tests(tests: list) -> None:
     state["active_tests"] = tests
+
+def get_profile_key() -> str:
+    return state["profile_key"]
+
+def set_profile_key(key: str) -> None:
+    state["profile_key"] = key
 
 def get_port(test_id: str) -> str:
     return state["ports"].get(test_id, "")

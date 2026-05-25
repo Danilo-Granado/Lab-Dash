@@ -85,8 +85,8 @@ function updateTabStates(activeTestIds) {
 
 // ── Session management (called by overview.js) ────────────────────────────────
 
-async function applySession({ poNumber, selectedTests }) {
-  await apiPost('/api/session', { po_number: poNumber, active_tests: selectedTests });
+async function applySession({ poNumber, selectedTests, profileKey }) {
+  await apiPost('/api/session', { po_number: poNumber, active_tests: selectedTests, profile_key: profileKey || 'default' });
   activeTests = selectedTests;
 
   // Update PO chip in topbar
@@ -107,46 +107,143 @@ async function applySession({ poNumber, selectedTests }) {
   });
 }
 
+// ── QC evaluation helper (called by tab scripts) ──────────────────────────────
+
+/**
+ * Evaluate a numeric reading against a spec.
+ * Returns { status, label, color, inRange, spec }
+ * status is one of: "approved" | "rejected" | "no_spec"
+ */
+function evaluateQC(value, spec) {
+  if (!spec || !spec.defined) {
+    return { status: 'approved', label: 'No Spec — Pass-through', color: 'var(--text-muted)', inRange: true, spec };
+  }
+  const tooLow  = spec.min != null && value < spec.min;
+  const tooHigh = spec.max != null && value > spec.max;
+  if (tooLow || tooHigh) {
+    const reason = tooLow ? `below min (${spec.min})` : `above max (${spec.max})`;
+    return { status: 'rejected', label: `Out of Spec — ${reason}`, color: 'var(--red)', inRange: false, spec };
+  }
+  return { status: 'approved', label: 'Within Spec', color: 'var(--green)', inRange: true, spec };
+}
+
 // ── Confirm & Save modal ──────────────────────────────────────────────────────
 
 let _modalResolve = null;
 
 /**
- * Open the save modal with a result preview.
- * Returns a Promise that resolves to { confirmed: bool, notes: string }.
+ * Open the save modal with a result preview and QC verdict.
  *
- * Usage (from a tab script):
- *   const { confirmed, notes } = await showSaveModal('Viscosity', { 'Viscosity': '123.4 mPa·s', ... });
- *   if (confirmed) { ... }
+ * @param {string} testName   - Display name of the test
+ * @param {object} resultRows - Key/value pairs shown in the preview
+ * @param {object} qc         - Result of evaluateQC(): { status, label, color, inRange, spec }
+ *
+ * Returns Promise<{ confirmed: bool, notes: string, approval_status: string, override_justification: string }>
  */
-function showSaveModal(testName, resultRows) {
+function showSaveModal(testName, resultRows, qc) {
   const backdrop = document.getElementById('modal-backdrop');
   const body     = document.getElementById('modal-body');
   const notes    = document.getElementById('modal-notes');
 
   notes.value = '';
 
-  // Build result preview rows
-  body.innerHTML = Object.entries(resultRows)
+  const isRejected = qc && qc.status === 'rejected';
+  const specLine = qc ? `
+    <div style="display:flex; align-items:center; gap:10px; padding:12px 14px;
+                background:var(--surface2); border-radius:var(--radius);
+                border:1px solid ${isRejected ? 'var(--red)' : 'var(--border)'};
+                margin-bottom:14px;">
+      <span style="font-size:20px">${isRejected ? '✗' : '✓'}</span>
+      <div>
+        <div style="font-weight:600; color:${qc.color}">${isRejected ? 'REJECTED' : 'APPROVED'}</div>
+        <div style="font-size:12px; color:var(--text-muted)">${qc.label}</div>
+        ${qc.spec && qc.spec.defined ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+          Spec: ${qc.spec.min != null ? `min ${qc.spec.min}` : ''}${qc.spec.min != null && qc.spec.max != null ? ' / ' : ''}${qc.spec.max != null ? `max ${qc.spec.max}` : ''}
+        </div>` : ''}
+      </div>
+    </div>` : '';
+
+  const overrideSection = `
+    <div id="modal-override-section" style="display:none; margin-top:12px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <input type="checkbox" id="modal-override-check"
+               style="width:15px;height:15px;accent-color:var(--amber)" />
+        <label for="modal-override-check" style="font-size:13px; cursor:pointer; color:var(--amber)">
+          Override decision
+        </label>
+      </div>
+      <div id="modal-override-fields" style="display:none;">
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+                    color:var(--text-muted); margin-bottom:6px;">Override target</div>
+        <select id="modal-override-target" class="field-select" style="margin-bottom:10px;">
+          ${isRejected
+            ? '<option value="override_approved">Override → APPROVED</option>'
+            : '<option value="override_rejected">Override → REJECTED</option>'}
+        </select>
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+                    color:var(--text-muted); margin-bottom:6px;">Justification <span style="color:var(--red)">*</span></div>
+        <textarea id="modal-override-justification" class="field-input" rows="3"
+                  placeholder="Required — describe reason for override…"
+                  style="resize:vertical;"></textarea>
+      </div>
+    </div>`;
+
+  body.innerHTML = specLine + Object.entries(resultRows)
     .map(([k, v]) => `
       <div class="modal-result-row">
         <span class="modal-result-key">${k}</span>
         <span class="modal-result-value">${v ?? '—'}</span>
       </div>`)
-    .join('');
+    .join('') + overrideSection;
+
+  // Always show override option
+  document.getElementById('modal-override-section').style.display = 'block';
+
+  // Toggle override fields on checkbox change
+  document.getElementById('modal-override-check').addEventListener('change', e => {
+    document.getElementById('modal-override-fields').style.display = e.target.checked ? 'block' : 'none';
+  });
+
+  // Update confirm button label
+  const confirmBtn = document.getElementById('modal-confirm');
+  confirmBtn.textContent = isRejected ? 'Save (Rejected)' : 'Save Result';
+  confirmBtn.className   = isRejected ? 'btn btn-danger' : 'btn btn-primary';
 
   backdrop.style.display = 'flex';
 
   return new Promise(resolve => {
     _modalResolve = resolve;
 
-    document.getElementById('modal-confirm').onclick = () => {
+    confirmBtn.onclick = () => {
+      const overriding     = document.getElementById('modal-override-check').checked;
+      const justification  = (document.getElementById('modal-override-justification')?.value || '').trim();
+      const overrideTarget = document.getElementById('modal-override-target')?.value || '';
+
+      if (overriding && !justification) {
+        document.getElementById('modal-override-justification').style.borderColor = 'var(--red)';
+        document.getElementById('modal-override-justification').focus();
+        return; // block save — justification required
+      }
+
+      let finalStatus;
+      if (overriding) {
+        finalStatus = overrideTarget; // "override_approved" or "override_rejected"
+      } else {
+        finalStatus = qc ? qc.status : 'approved';
+      }
+
       backdrop.style.display = 'none';
-      resolve({ confirmed: true, notes: notes.value.trim() });
+      resolve({
+        confirmed:              true,
+        notes:                  notes.value.trim(),
+        approval_status:        finalStatus,
+        override_justification: overriding ? justification : '',
+      });
     };
+
     document.getElementById('modal-cancel').onclick = () => {
       backdrop.style.display = 'none';
-      resolve({ confirmed: false, notes: '' });
+      resolve({ confirmed: false, notes: '', approval_status: '', override_justification: '' });
     };
   });
 }

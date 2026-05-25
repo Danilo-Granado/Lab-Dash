@@ -36,6 +36,7 @@ def get_session():
     return jsonify({
         "po_number":    ss.get_po(),
         "active_tests": ss.get_active_tests(),
+        "profile_key":  ss.get_profile_key(),
         "ports":        ss.state["ports"],
     })
 
@@ -47,7 +48,9 @@ def set_session():
         ss.set_po(data["po_number"])
     if "active_tests" in data:
         ss.set_active_tests(data["active_tests"])
-    return jsonify({"ok": True, "po_number": ss.get_po(), "active_tests": ss.get_active_tests()})
+    if "profile_key" in data:
+        ss.set_profile_key(data["profile_key"])
+    return jsonify({"ok": True, "po_number": ss.get_po(), "active_tests": ss.get_active_tests(), "profile_key": ss.get_profile_key()})
 
 
 # ── Equipment metadata ─────────────────────────────────────────────────────────
@@ -69,6 +72,36 @@ def profiles():
     # Strip internal comment key
     data.pop("_comment", None)
     return jsonify(data)
+
+
+# ── Specs ──────────────────────────────────────────────────────────────────────
+
+@api_bp.route("/specs/<profile_key>/<test_id>", methods=["GET"])
+def get_specs(profile_key, test_id):
+    """
+    Return the min/max spec for a given profile + test combination.
+    Response: { "min": float|null, "max": float|null, "defined": bool }
+    "defined": false means no spec exists → pass-through (always approved).
+    """
+    path = Path(PROFILES_PATH)
+    if not path.exists():
+        return jsonify({"min": None, "max": None, "defined": False})
+
+    with open(path) as f:
+        profiles = json.load(f)
+
+    profile = profiles.get(profile_key, {})
+    specs   = profile.get("specs", {})
+    spec    = specs.get(test_id)
+
+    if spec is None:
+        return jsonify({"min": None, "max": None, "defined": False})
+
+    return jsonify({
+        "min":     spec.get("min"),
+        "max":     spec.get("max"),
+        "defined": True,
+    })
 
 
 # ── Port config ────────────────────────────────────────────────────────────────

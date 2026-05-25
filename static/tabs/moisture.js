@@ -50,6 +50,11 @@ function initMoistureTab(panel) {
     <div class="card" id="moist-result-card" style="display:none;">
       <div class="card-title">Final Result</div>
 
+      <!-- QC verdict banner — populated by _moistShowResult -->
+      <div id="moist-qc-banner" style="display:none; align-items:center; gap:10px;
+           padding:10px 14px; background:var(--surface2); border-radius:var(--radius);
+           border:1px solid var(--border); margin-bottom:16px;"></div>
+
       <div style="margin-bottom:24px;">
         <span class="readout" id="moist-readout">—</span>
         <span class="readout-unit">%MC</span>
@@ -166,21 +171,51 @@ function _moistOnEvent(event) {
     // Final result
     clearInterval(_moistClockInterval);
     _moistLastFinal = d;
-    _moistShowResult(d);
+    _moistShowResult(d);   // async — runs in background
     _moistResetControls();
     if (_moistSource) { _moistSource.close(); _moistSource = null; }
     _moistLog('Test complete. Final result received.', 'ok');
   }
 }
 
-function _moistShowResult(d) {
+let _moistLastQC = null;
+
+async function _moistShowResult(d) {
+  // Fetch spec for the active profile
+  let qc = { status: 'approved', label: 'No Spec — Pass-through', color: 'var(--text-muted)', inRange: true, spec: null };
+  try {
+    const session = await apiGet('/api/session');
+    const spec    = await apiGet(`/api/specs/${session.profile_key}/moisture`);
+    qc = evaluateQC(d.moisture_pct, spec);
+  } catch (_) {}
+
+  _moistLastQC = qc;
+
+  const qcColor = qc.status === 'rejected' ? 'var(--red)' : qc.spec?.defined ? 'var(--green)' : 'var(--text-muted)';
+
   document.getElementById('moist-phase').textContent = 'Complete';
   document.getElementById('moist-phase').style.color = 'var(--green)';
 
+  // Colour the main readout according to QC verdict
   document.getElementById('moist-readout').textContent = d.moisture_pct ?? '—';
+  document.getElementById('moist-readout').style.color = qcColor;
   document.getElementById('moist-init-w').textContent  = d.initial_weight_g ?? '—';
   document.getElementById('moist-final-w').textContent = d.final_weight_g ?? '—';
   document.getElementById('moist-time').textContent    = d.elapsed_time ?? '—';
+
+  // QC verdict banner above the result card buttons
+  const banner = document.getElementById('moist-qc-banner');
+  if (banner) {
+    banner.style.display = 'flex';
+    banner.style.borderColor = qc.status === 'rejected' ? 'var(--red)' : 'var(--border)';
+    banner.innerHTML = `
+      <span style="font-size:20px; color:${qcColor}">${qc.status === 'rejected' ? '✗' : '✓'}</span>
+      <div>
+        <div style="font-weight:600; color:${qcColor}">${qc.status === 'rejected' ? 'REJECTED' : 'APPROVED'}</div>
+        <div style="font-size:12px; color:var(--text-muted)">${qc.label}</div>
+      </div>
+    `;
+  }
 
   document.getElementById('moist-result-card').style.display = 'block';
   document.getElementById('moist-save-btn').onclick    = _moistSave;
@@ -191,26 +226,30 @@ function _moistShowResult(d) {
 
 async function _moistSave() {
   if (!_moistLastFinal) return;
-  const po = (await apiGet('/api/session')).po_number;
+  const session = await apiGet('/api/session');
+  const po = session.po_number;
   if (!po) { _moistAlert('error', 'No PO number set. Go to Overview first.'); return; }
 
   const rows = {
-    'PO Number':       po,
+    'PO Number':        po,
     'Moisture Content': `${_moistLastFinal.moisture_pct} %MC`,
-    'Initial Weight':  `${_moistLastFinal.initial_weight_g} g`,
-    'Final Weight':    `${_moistLastFinal.final_weight_g} g`,
-    'Elapsed Time':    _moistLastFinal.elapsed_time,
+    'Initial Weight':   `${_moistLastFinal.initial_weight_g} g`,
+    'Final Weight':     `${_moistLastFinal.final_weight_g} g`,
+    'Elapsed Time':     _moistLastFinal.elapsed_time,
   };
 
-  const { confirmed, notes } = await showSaveModal('Moisture Content', rows);
+  const { confirmed, notes, approval_status, override_justification } =
+    await showSaveModal('Moisture Content', rows, _moistLastQC);
   if (!confirmed) return;
 
   try {
     await apiPost('/storage/save', {
-      po_number: po,
-      test_id:   'moisture',
-      values:    _moistLastFinal,
+      po_number:              po,
+      test_id:                'moisture',
+      values:                 _moistLastFinal,
       notes,
+      approval_status,
+      override_justification,
     });
     _moistAlert('success', 'Result saved.');
     document.getElementById('moist-result-card').style.display = 'none';
