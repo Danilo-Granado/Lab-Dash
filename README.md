@@ -76,7 +76,7 @@ lab_dashboard/
 
 ## Standard profiles.json
 
-´´´
+```
 {
   "product_b": {
     "display_name": "Product B",
@@ -88,7 +88,7 @@ lab_dashboard/
     "tests": ["viscosity"]
   }
 }
-´´´
+```
 
 ## Switching to a database
 
