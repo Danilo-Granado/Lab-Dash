@@ -85,8 +85,8 @@ function updateTabStates(activeTestIds) {
 
 // ── Session management (called by overview.js) ────────────────────────────────
 
-async function applySession({ poNumber, selectedTests, profileKey }) {
-  await apiPost('/api/session', { po_number: poNumber, active_tests: selectedTests, profile_key: profileKey || 'default' });
+async function applySession({ poNumber, selectedTests, profileKey, productName }) {
+  await apiPost('/api/session', { po_number: poNumber, active_tests: selectedTests, profile_key: profileKey || 'default', product_name: productName || '' });
   activeTests = selectedTests;
 
   // Update PO chip in topbar
@@ -125,6 +125,56 @@ function evaluateQC(value, spec) {
     return { status: 'rejected', label: `Out of Spec — ${reason}`, color: 'var(--red)', inRange: false, spec };
   }
   return { status: 'approved', label: 'Within Spec', color: 'var(--green)', inRange: true, spec };
+}
+
+// ── Shared product summary card (used by equipment tabs) ──────────────────────
+
+/**
+ * Renders a compact product info card into `containerEl`.
+ * Fetches the active session's profile key, then the full profile data.
+ * Pass the current test_id to highlight the relevant spec row.
+ */
+async function renderProductSummaryCard(containerEl, testId) {
+  try {
+    const session  = await apiGet('/api/session');
+    const profiles = await apiGet('/api/profiles');
+    const profile  = profiles[session.profile_key];
+    if (!profile) { containerEl.style.display = 'none'; return; }
+
+    const spec = (profile.specs || {})[testId];
+    const specText = spec
+      ? [spec.min != null ? `Min: ${spec.min}` : '', spec.max != null ? `Max: ${spec.max}` : '']
+          .filter(Boolean).join('  /  ')
+      : 'No spec defined (pass-through)';
+
+    containerEl.innerHTML = `
+      <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+        <div class="stat-tile" style="flex:1; min-width:120px;">
+          <div class="stat-value" style="font-size:14px">${profile.display_name || '—'}</div>
+          <div class="stat-label">Product</div>
+        </div>
+        <div class="stat-tile" style="flex:1; min-width:120px;">
+          <div class="stat-value" style="font-size:14px">${profile.product_code || '—'}</div>
+          <div class="stat-label">Product Code</div>
+        </div>
+        <div class="stat-tile" style="flex:1; min-width:120px;">
+          <div class="stat-value" style="font-size:14px">${profile.client || '—'}</div>
+          <div class="stat-label">Client</div>
+        </div>
+        <div class="stat-tile" style="flex:1; min-width:120px;">
+          <div class="stat-value" style="font-size:14px">${profile.registry_number || '—'}</div>
+          <div class="stat-label">Registry No.</div>
+        </div>
+        <div class="stat-tile" style="flex:2; min-width:180px;">
+          <div class="stat-value" style="font-size:14px; font-family:var(--mono)">${specText}</div>
+          <div class="stat-label">Spec</div>
+        </div>
+      </div>
+    `;
+    containerEl.style.display = 'block';
+  } catch (e) {
+    containerEl.style.display = 'none';
+  }
 }
 
 // ── Confirm & Save modal ──────────────────────────────────────────────────────

@@ -49,6 +49,12 @@ function initOverviewTab() {
       </div>
     </div>
 
+    <!-- Product details card (shown when a profile is selected) ─────── -->
+    <div class="card" id="ov-product-card" style="display:none;">
+      <div class="card-title">Product Details</div>
+      <div id="ov-product-body"></div>
+    </div>
+
     <!-- Equipment status + port config ─────────────────────────────── -->
     <div class="card">
       <div class="card-title">Equipment</div>
@@ -102,12 +108,64 @@ async function _loadEquipment() {
 function _onProfileChange() {
   const key     = document.getElementById('ov-profile').value;
   const profile = _profiles[key];
-  if (!profile || !_equipList.length) return;
-  // Tick the relevant checkboxes
-  _equipList.forEach(eq => {
-    const cb = document.getElementById(`ov-check-${eq.test_id}`);
-    if (cb) cb.checked = profile.tests.includes(eq.test_id);
-  });
+
+  // Update test checkboxes
+  if (profile && _equipList.length) {
+    _equipList.forEach(eq => {
+      const cb = document.getElementById(`ov-check-${eq.test_id}`);
+      if (cb) cb.checked = profile.tests.includes(eq.test_id);
+    });
+  }
+
+  // Show/hide product detail card
+  const card = document.getElementById('ov-product-card');
+  const body = document.getElementById('ov-product-body');
+  if (!profile || !key || (!profile.product_code && !profile.client && !profile.registry_number)) {
+    card.style.display = 'none';
+    return;
+  }
+
+  const specs = profile.specs || {};
+  const specRows = Object.entries(specs).map(([testId, s]) => {
+    const eq   = _equipList.find(e => e.test_id === testId);
+    const name = eq ? eq.display_name : testId;
+    const min  = s.min != null ? s.min : '—';
+    const max  = s.max != null ? s.max : '—';
+    return `
+      <div style="display:flex; gap:24px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px;">
+        <span style="width:140px; color:var(--text-muted)">${name}</span>
+        <span>Min: <span style="font-family:var(--mono); color:var(--text)">${min}</span></span>
+        <span>Max: <span style="font-family:var(--mono); color:var(--text)">${max}</span></span>
+      </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="grid-3" style="gap:16px; margin-bottom:${specRows ? '20px' : '0'}">
+      <div class="stat-tile">
+        <div class="stat-value" style="font-size:16px">${profile.display_name || '—'}</div>
+        <div class="stat-label">Product Name</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" style="font-size:16px">${profile.product_code || '—'}</div>
+        <div class="stat-label">Product Code</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-value" style="font-size:16px">${profile.registry_number || '—'}</div>
+        <div class="stat-label">Registry Number</div>
+      </div>
+      <div class="stat-tile" style="grid-column: span 3;">
+        <div class="stat-value" style="font-size:16px">${profile.client || '—'}</div>
+        <div class="stat-label">Client</div>
+      </div>
+    </div>
+    ${specRows ? `
+      <div style="margin-top:4px;">
+        <div class="card-title" style="margin-bottom:8px;">Specifications</div>
+        ${specRows}
+      </div>` : ''}
+  `;
+
+  card.style.display = 'block';
 }
 
 // ── Test checkboxes ───────────────────────────────────────────────────────────
@@ -149,8 +207,11 @@ async function _onStartSession() {
     return;
   }
 
-  await applySession({ poNumber: po, selectedTests: selected, profileKey: document.getElementById('ov-profile').value || 'default' });
-  _updateSessionSummary(po, selected);
+  const profileKey  = document.getElementById('ov-profile').value || 'default';
+  const productName = (_profiles[profileKey] || {}).display_name || '';
+
+  await applySession({ poNumber: po, selectedTests: selected, profileKey, productName });
+  _updateSessionSummary(po, selected, productName);
   _showAlert('ov-session-alert', 'success', 'Session started. Switch to an equipment tab to begin testing.');
 }
 
@@ -161,11 +222,12 @@ function _onClearSession() {
     if (cb) cb.checked = false;
   });
   document.getElementById('ov-session-summary').innerHTML = '<span style="color:var(--text-muted)">No session active.</span>';
-  applySession({ poNumber: '', selectedTests: [] });
+  document.getElementById('ov-product-card').style.display = 'none';
+  applySession({ poNumber: '', selectedTests: [], profileKey: 'default', productName: '' });
   _showAlert('ov-session-alert', 'info', 'Session cleared.');
 }
 
-function _updateSessionSummary(po, tests) {
+function _updateSessionSummary(po, tests, productName) {
   const names = tests.map(id => {
     const eq = _equipList.find(e => e.test_id === id);
     return eq ? eq.display_name : id;
@@ -175,6 +237,11 @@ function _updateSessionSummary(po, tests) {
       <div class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">PO Number</div>
       <div style="font-family:var(--mono);font-size:16px;color:var(--accent)">${po}</div>
     </div>
+    ${productName ? `
+    <div style="margin-bottom:10px;">
+      <div class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Product</div>
+      <div style="font-size:14px;color:var(--text)">${productName}</div>
+    </div>` : ''}
     <div>
       <div class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Active Tests</div>
       ${names.map(n => `<div style="font-size:13px;margin-bottom:4px">✓ ${n}</div>`).join('')}

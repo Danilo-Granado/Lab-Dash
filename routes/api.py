@@ -37,6 +37,7 @@ def get_session():
         "po_number":    ss.get_po(),
         "active_tests": ss.get_active_tests(),
         "profile_key":  ss.get_profile_key(),
+        "product_name": ss.get_product_name(),
         "ports":        ss.state["ports"],
     })
 
@@ -50,7 +51,9 @@ def set_session():
         ss.set_active_tests(data["active_tests"])
     if "profile_key" in data:
         ss.set_profile_key(data["profile_key"])
-    return jsonify({"ok": True, "po_number": ss.get_po(), "active_tests": ss.get_active_tests(), "profile_key": ss.get_profile_key()})
+    if "product_name" in data:
+        ss.set_product_name(data["product_name"])
+    return jsonify({"ok": True, "po_number": ss.get_po(), "active_tests": ss.get_active_tests(), "profile_key": ss.get_profile_key(), "product_name": ss.get_product_name()})
 
 
 # ── Equipment metadata ─────────────────────────────────────────────────────────

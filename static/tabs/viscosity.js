@@ -10,6 +10,12 @@ let _viscSource = null;   // active EventSource
 
 function initViscosityTab(panel) {
   panel.innerHTML = `
+    <!-- Product summary ─────────────────────────────────────────────── -->
+    <div class="card" id="visc-product-card" style="display:none;">
+      <div class="card-title">Product</div>
+      <div id="visc-product-body"></div>
+    </div>
+
     <!-- Controls ────────────────────────────────────────────────────── -->
     <div class="card">
       <div class="card-title">Test Configuration</div>
@@ -131,6 +137,13 @@ function initViscosityTab(panel) {
 
   document.getElementById('visc-start-btn').addEventListener('click', _viscStart);
   document.getElementById('visc-stop-btn').addEventListener('click',  _viscStop);
+
+  // Render product summary card
+  renderProductSummaryCard(document.getElementById('visc-product-body'), 'viscosity')
+    .then(() => {
+      const card = document.getElementById('visc-product-card');
+      if (document.getElementById('visc-product-body').innerHTML.trim()) card.style.display = 'block';
+    });
 }
 
 // ── Last final reading — held for save ───────────────────────────────────────
@@ -289,6 +302,7 @@ async function _viscSave() {
       notes,
       approval_status,
       override_justification,
+      product_name:           session.product_name || '',
     });
     _viscAlert('success', 'Result saved.');
     document.getElementById('visc-result-card').style.display = 'none';

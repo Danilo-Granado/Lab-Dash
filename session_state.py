@@ -17,6 +17,7 @@ state = {
     "po_number":    "",
     "active_tests": [],          # list of test_ids currently enabled
     "profile_key":  "default",   # active profile key from profiles.json
+    "product_name": "",          # display_name of the active profile
 
     # Port config — initialised from config.py defaults
     "ports": dict(DEFAULT_PORTS),
@@ -47,6 +48,12 @@ def get_profile_key() -> str:
 
 def set_profile_key(key: str) -> None:
     state["profile_key"] = key
+
+def get_product_name() -> str:
+    return state["product_name"]
+
+def set_product_name(name: str) -> None:
+    state["product_name"] = name
 
 def get_port(test_id: str) -> str:
     return state["ports"].get(test_id, "")

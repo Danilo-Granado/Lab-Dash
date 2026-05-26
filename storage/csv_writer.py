@@ -10,8 +10,8 @@ get_results(), and update_approval() signatures in a new module
 Nothing else changes.
 
 CSV columns:
-    timestamp, po_number, test_id, display_name, result_json, notes,
-    approval_status, override_justification
+    timestamp, po_number, product_name, test_id, display_name, result_json,
+    notes, approval_status, override_justification
 """
 
 import csv
@@ -29,6 +29,7 @@ CSV_PATH = Path(CSV_OUTPUT_DIR) / "results.csv"
 FIELDNAMES = [
     "timestamp",
     "po_number",
+    "product_name",              # display_name of the active profile
     "test_id",
     "display_name",
     "result_json",
@@ -62,6 +63,7 @@ def save_result(
     notes:        str = "",
     approval_status: str = APPROVED,
     override_justification: str = "",
+    product_name: str = "",
 ) -> dict:
     """
     Append one result row to the CSV.
@@ -69,11 +71,12 @@ def save_result(
     Args:
         po_number:               Production order number
         test_id:                 Equipment identifier e.g. "moisture"
-        display_name:            Human-readable name
+        display_name:            Human-readable test name e.g. "Moisture Content"
         values:                  Dict of measurement values
         notes:                   Optional operator notes
         approval_status:         One of the four status constants above
         override_justification:  Required when status is an override
+        product_name:            Display name of the active product profile
 
     Returns:
         The row dict that was written.
@@ -83,6 +86,7 @@ def save_result(
     row = {
         "timestamp":              datetime.now().isoformat(timespec="seconds"),
         "po_number":              po_number,
+        "product_name":           product_name,
         "test_id":                test_id,
         "display_name":           display_name,
         "result_json":            json.dumps(values),
@@ -125,6 +129,7 @@ def get_results(po_number: str | None = None, test_id: str | None = None) -> lis
             # Ensure new columns exist even in older CSV files
             row.setdefault("approval_status", APPROVED)
             row.setdefault("override_justification", "")
+            row.setdefault("product_name", "")
             rows.append(row)
 
     return list(reversed(rows))  # newest first

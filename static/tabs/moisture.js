@@ -10,6 +10,12 @@ let _moistSource = null;
 
 function initMoistureTab(panel) {
   panel.innerHTML = `
+    <!-- Product summary ─────────────────────────────────────────────── -->
+    <div class="card" id="moist-product-card" style="display:none;">
+      <div class="card-title">Product</div>
+      <div id="moist-product-body"></div>
+    </div>
+
     <!-- Controls ──────────────────────────────────────────────────── -->
     <div class="card">
       <div class="card-title">Test Control</div>
@@ -85,6 +91,13 @@ function initMoistureTab(panel) {
 
   document.getElementById('moist-start-btn').addEventListener('click', _moistStart);
   document.getElementById('moist-stop-btn').addEventListener('click',  _moistStop);
+
+  // Render product summary card
+  renderProductSummaryCard(document.getElementById('moist-product-body'), 'moisture')
+    .then(() => {
+      const card = document.getElementById('moist-product-card');
+      if (document.getElementById('moist-product-body').innerHTML.trim()) card.style.display = 'block';
+    });
 }
 
 // ── Last final reading ────────────────────────────────────────────────────────
@@ -250,6 +263,7 @@ async function _moistSave() {
       notes,
       approval_status,
       override_justification,
+      product_name:           session.product_name || '',
     });
     _moistAlert('success', 'Result saved.');
     document.getElementById('moist-result-card').style.display = 'none';

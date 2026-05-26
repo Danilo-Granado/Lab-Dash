@@ -35,6 +35,7 @@ function initHistoryTab() {
             <tr>
               <th>Timestamp</th>
               <th>PO Number</th>
+              <th>Product</th>
               <th>Test</th>
               <th>Result</th>
               <th>Approval</th>
@@ -43,7 +44,7 @@ function initHistoryTab() {
             </tr>
           </thead>
           <tbody id="hist-tbody">
-            <tr><td colspan="7" style="text-align:center; color:var(--text-muted);">Loading…</td></tr>
+            <tr><td colspan="8" style="text-align:center; color:var(--text-muted);">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -137,7 +138,7 @@ async function _histLoad() {
     _histRender(rows);
   } catch (e) {
     document.getElementById('hist-tbody').innerHTML =
-      `<tr><td colspan="7" style="color:var(--red)">Error loading results: ${e.message}</td></tr>`;
+      `<tr><td colspan="8" style="color:var(--red)">Error loading results: ${e.message}</td></tr>`;
   }
 }
 
@@ -164,6 +165,7 @@ function _histRender(rows) {
       <tr id="hist-row-${_rowId(row.timestamp)}">
         <td>${ts}</td>
         <td style="color:var(--accent)">${row.po_number || '—'}</td>
+        <td style="color:var(--text-dim)">${row.product_name || '—'}</td>
         <td>${row.display_name || row.test_id}</td>
         <td style="color:var(--text)">${result}</td>
         <td>

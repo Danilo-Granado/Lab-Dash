@@ -55,6 +55,7 @@ def save():
             notes                   = data.get("notes", ""),
             approval_status         = status,
             override_justification  = data.get("override_justification", ""),
+            product_name            = data.get("product_name", ""),
         )
         return jsonify({"ok": True, "row": row})
     except Exception as e:
