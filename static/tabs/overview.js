@@ -26,6 +26,11 @@ function initOverviewTab() {
             </select>
           </div>
 
+          <div class="field-group" id="ov-custom-name-group" style="display:none;">
+            <label class="field-label">Product Name</label>
+            <input id="ov-custom-name" class="field-input" placeholder="Enter product name…" />
+          </div>
+
           <div class="field-group">
             <label class="field-label">Tests to Run</label>
             <div id="ov-test-checks" style="display:flex; flex-direction:column; gap:8px; margin-top:4px;"></div>
@@ -109,13 +114,15 @@ function _onProfileChange() {
   const key     = document.getElementById('ov-profile').value;
   const profile = _profiles[key];
 
-  // Update test checkboxes
-  if (profile && _equipList.length) {
+  // Show custom name input only when no named profile is selected
+  const isCustom = !key || key === 'default';
+  document.getElementById('ov-custom-name-group').style.display = isCustom ? 'block' : 'none';
+  if (!isCustom) document.getElementById('ov-custom-name').value = '';
     _equipList.forEach(eq => {
       const cb = document.getElementById(`ov-check-${eq.test_id}`);
       if (cb) cb.checked = profile.tests.includes(eq.test_id);
     });
-  }
+  
 
   // Show/hide product detail card
   const card = document.getElementById('ov-product-card');
@@ -208,7 +215,10 @@ async function _onStartSession() {
   }
 
   const profileKey  = document.getElementById('ov-profile').value || 'default';
-  const productName = (_profiles[profileKey] || {}).display_name || '';
+  const isCustom    = !profileKey || profileKey === 'default';
+  const productName = isCustom
+    ? (document.getElementById('ov-custom-name').value.trim() || 'Custom')
+    : ((_profiles[profileKey] || {}).display_name || '');
 
   await applySession({ poNumber: po, selectedTests: selected, profileKey, productName });
   _updateSessionSummary(po, selected, productName);
@@ -222,6 +232,8 @@ function _onClearSession() {
     if (cb) cb.checked = false;
   });
   document.getElementById('ov-session-summary').innerHTML = '<span style="color:var(--text-muted)">No session active.</span>';
+  document.getElementById('ov-custom-name').value = '';
+  document.getElementById('ov-custom-name-group').style.display = 'none';
   document.getElementById('ov-product-card').style.display = 'none';
   applySession({ poNumber: '', selectedTests: [], profileKey: 'default', productName: '' });
   _showAlert('ov-session-alert', 'info', 'Session cleared.');
