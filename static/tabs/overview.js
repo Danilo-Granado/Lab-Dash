@@ -21,9 +21,16 @@ function initOverviewTab() {
 
           <div class="field-group">
             <label class="field-label">Product Profile</label>
-            <select id="ov-profile" class="field-select">
-              <option value="">Loading profiles…</option>
-            </select>
+            <div id="ov-profile-combobox" style="position:relative;">
+              <input id="ov-profile-search" class="field-input"
+                     placeholder="Search or select a profile…"
+                     autocomplete="off" />
+              <div id="ov-profile-dropdown"
+                   style="display:none; position:absolute; top:100%; left:0; right:0;
+                          background:var(--surface2); border:1px solid var(--accent);
+                          border-top:none; border-radius:0 0 var(--radius) var(--radius);
+                          max-height:220px; overflow-y:auto; z-index:200;"></div>
+            </div>
           </div>
 
           <div class="field-group" id="ov-custom-name-group" style="display:none;">
@@ -70,29 +77,120 @@ function initOverviewTab() {
   _loadProfiles();
   _loadEquipment();
 
-  document.getElementById('ov-profile').addEventListener('change', _onProfileChange);
+  _initProfileCombobox();
   document.getElementById('ov-start-session').addEventListener('click', _onStartSession);
   document.getElementById('ov-clear-session').addEventListener('click', _onClearSession);
 }
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
 
-let _profiles    = {};
-let _equipList   = [];
+let _profiles           = {};
+let _equipList          = [];
+let _selectedProfileKey = '';   // source of truth — replaces reading from a <select>
+
+// ── Combobox ──────────────────────────────────────────────────────────────────
+
+function _initProfileCombobox() {
+  const input    = document.getElementById('ov-profile-search');
+  const dropdown = document.getElementById('ov-profile-dropdown');
+
+  // Open dropdown on focus
+  input.addEventListener('focus', () => _renderDropdown(input.value));
+
+  // Filter on type
+  input.addEventListener('input', () => _renderDropdown(input.value));
+
+  // Close on outside click
+  document.addEventListener('mousedown', e => {
+    if (!document.getElementById('ov-profile-combobox').contains(e.target)) {
+      _closeDropdown();
+      // If the user typed something that doesn't match any profile, revert
+      if (!_selectedProfileKey) input.value = '';
+    }
+  });
+
+  // Keyboard navigation
+  input.addEventListener('keydown', e => {
+    const items = dropdown.querySelectorAll('.ov-profile-item');
+    const active = dropdown.querySelector('.ov-profile-item.focused');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = active ? active.nextElementSibling : items[0];
+      if (next) { active?.classList.remove('focused'); next.classList.add('focused'); next.scrollIntoView({ block: 'nearest' }); }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = active?.previousElementSibling;
+      if (prev) { active.classList.remove('focused'); prev.classList.add('focused'); prev.scrollIntoView({ block: 'nearest' }); }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active) active.click();
+    } else if (e.key === 'Escape') {
+      _closeDropdown();
+    }
+  });
+}
+
+function _renderDropdown(query) {
+  const dropdown = document.getElementById('ov-profile-dropdown');
+  const q = query.trim().toLowerCase();
+
+  // Build item list: Custom first, then all profiles
+  const entries = [
+    { key: '', label: 'Custom' },
+    ...Object.entries(_profiles).map(([key, p]) => ({ key, label: p.display_name })),
+  ];
+
+  const filtered = q
+    ? entries.filter(e => e.label.toLowerCase().includes(q) || e.key.toLowerCase().includes(q))
+    : entries;
+
+  if (!filtered.length) {
+    dropdown.innerHTML = `<div style="padding:10px 14px; color:var(--text-muted); font-size:13px;">No profiles found</div>`;
+  } else {
+    dropdown.innerHTML = filtered.map(e => `
+      <div class="ov-profile-item ${e.key === _selectedProfileKey ? 'selected' : ''}"
+           data-key="${e.key}"
+           style="padding:9px 14px; font-size:13px; cursor:pointer;
+                  color:${e.key === _selectedProfileKey ? 'var(--accent)' : 'var(--text)'};
+                  background:${e.key === _selectedProfileKey ? 'var(--accent-dim)' : 'transparent'};">
+        ${e.label}
+        ${e.key ? `<span style="font-size:11px; color:var(--text-muted); margin-left:6px;">${e.key}</span>` : ''}
+      </div>`).join('');
+
+    dropdown.querySelectorAll('.ov-profile-item').forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        dropdown.querySelectorAll('.ov-profile-item').forEach(i => i.classList.remove('focused'));
+        item.classList.add('focused');
+      });
+      item.addEventListener('mousedown', e => {
+        e.preventDefault(); // prevent blur before click
+        _selectProfile(item.dataset.key);
+      });
+    });
+  }
+
+  dropdown.style.display = 'block';
+}
+
+function _selectProfile(key) {
+  _selectedProfileKey = key;
+  const label = key ? (_profiles[key]?.display_name || key) : 'Custom';
+  document.getElementById('ov-profile-search').value = label;
+  _closeDropdown();
+  _onProfileChange();
+}
+
+function _closeDropdown() {
+  document.getElementById('ov-profile-dropdown').style.display = 'none';
+}
+
+// ── Profiles loading ──────────────────────────────────────────────────────────
 
 async function _loadProfiles() {
   try {
     _profiles = await apiGet('/api/profiles');
-    const sel = document.getElementById('ov-profile');
-    sel.innerHTML = '<option value="">Custom</option>';
-    Object.entries(_profiles).forEach(([key, p]) => {
-      const opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = p.display_name;
-      if (key === 'default') opt.selected = true;
-      sel.appendChild(opt);
-    });
-    _onProfileChange();
+    // Select 'default' profile on load
+    _selectProfile('default');
   } catch (e) {
     console.error('Could not load profiles:', e);
   }
@@ -111,7 +209,7 @@ async function _loadEquipment() {
 }
 
 function _onProfileChange() {
-  const key     = document.getElementById('ov-profile').value;
+  const key     = _selectedProfileKey;
   const profile = _profiles[key];
 
   // Show custom name input only when no named profile is selected
@@ -214,7 +312,7 @@ async function _onStartSession() {
     return;
   }
 
-  const profileKey  = document.getElementById('ov-profile').value || 'default';
+  const profileKey  = _selectedProfileKey || 'default';
   const isCustom    = !profileKey || profileKey === 'default';
   const productName = isCustom
     ? (document.getElementById('ov-custom-name').value.trim() || 'Custom')
@@ -232,6 +330,9 @@ function _onClearSession() {
     if (cb) cb.checked = false;
   });
   document.getElementById('ov-session-summary').innerHTML = '<span style="color:var(--text-muted)">No session active.</span>';
+  document.getElementById('ov-profile-search').value = '';
+  _selectedProfileKey = '';
+  _closeDropdown();
   document.getElementById('ov-custom-name').value = '';
   document.getElementById('ov-custom-name-group').style.display = 'none';
   document.getElementById('ov-product-card').style.display = 'none';

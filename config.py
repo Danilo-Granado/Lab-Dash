@@ -19,7 +19,7 @@ DEFAULT_PORTS = {
 
 # ── Poll intervals (seconds) ───────────────────────────────────────────────────
 VISCOSITY_POLL_INTERVAL_S = float(os.getenv("VISCOSITY_POLL_INTERVAL", "1.0"))
-MOISTURE_POLL_INTERVAL_S  = float(os.getenv("MOISTURE_POLL_INTERVAL",  "30.0"))
+MOISTURE_POLL_INTERVAL_S  = float(os.getenv("MOISTURE_POLL_INTERVAL",  "10.0"))
 
 # ── Storage ────────────────────────────────────────────────────────────────────
 CSV_OUTPUT_DIR = os.getenv("CSV_OUTPUT_DIR", "logs")

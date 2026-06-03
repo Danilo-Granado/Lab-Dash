@@ -138,12 +138,47 @@ function initViscosityTab(panel) {
   document.getElementById('visc-start-btn').addEventListener('click', _viscStart);
   document.getElementById('visc-stop-btn').addEventListener('click',  _viscStop);
 
-  // Render product summary card
+  // Render product summary card and load default settings from profile
   renderProductSummaryCard(document.getElementById('visc-product-body'), 'viscosity')
     .then(() => {
       const card = document.getElementById('visc-product-card');
       if (document.getElementById('visc-product-body').innerHTML.trim()) card.style.display = 'block';
     });
+
+  _viscLoadProfileDefaults();
+}
+
+async function _viscLoadProfileDefaults() {
+  try {
+    const session  = await apiGet('/api/session');
+    const profiles = await apiGet('/api/profiles');
+    const settings = profiles[session.profile_key]?.viscosity_settings;
+    if (!settings) return;
+
+    // Apply mode
+    if (settings.mode) {
+      document.getElementById('visc-mode').value = settings.mode;
+      const auto = settings.mode === 'auto_torque';
+      document.getElementById('visc-fixed-params').style.display = auto ? 'none' : 'block';
+      document.getElementById('visc-auto-params').style.display  = auto ? 'block' : 'none';
+    }
+
+    // Apply spindle
+    if (settings.spindle != null)
+      document.getElementById('visc-spindle').value = settings.spindle;
+
+    // Apply speed/torque fields
+    if (settings.speed != null) {
+      document.getElementById('visc-speed').value      = settings.speed;
+      document.getElementById('visc-init-speed').value = settings.speed;
+    }
+    if (settings.torque_setpoint != null)
+      document.getElementById('visc-torque-sp').value = settings.torque_setpoint;
+
+    _viscLog(`Defaults loaded from profile (${settings.mode}, spindle ${settings.spindle}, ${settings.speed} RPM).`, 'info');
+  } catch (e) {
+    // No settings defined for this profile — silently skip
+  }
 }
 
 // ── Last final reading — held for save ───────────────────────────────────────

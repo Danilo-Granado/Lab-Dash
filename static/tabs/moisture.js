@@ -21,7 +21,7 @@ function initMoistureTab(panel) {
       <div class="card-title">Test Control</div>
       <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
         The MB27 runs the drying test autonomously. Press Start — the analyzer
-        will be polled every 30 seconds until the final moisture result is ready.
+        will be polled every 10 seconds until the final moisture result is ready.
       </p>
       <div class="btn-row">
         <button class="btn btn-green"  id="moist-start-btn">▶ Start Test</button>

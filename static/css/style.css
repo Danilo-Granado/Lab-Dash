@@ -371,6 +371,13 @@ body {
 /* ── Progress ring ─────────────────────────────────────────────────────────── */
 .progress-ring { display: inline-block; vertical-align: middle; }
 
+/* ── Profile combobox ──────────────────────────────────────────────────────── */
+.ov-profile-item:hover,
+.ov-profile-item.focused {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
 /* ── Misc helpers ──────────────────────────────────────────────────────────── */
 .text-muted  { color: var(--text-muted); }
 .text-green  { color: var(--green); }

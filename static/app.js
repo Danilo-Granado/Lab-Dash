@@ -104,6 +104,8 @@ async function applySession({ poNumber, selectedTests, profileKey, productName }
       initViscosityTab(panel);
     else if (testId === 'moisture' && typeof initMoistureTab === 'function')
       initMoistureTab(panel);
+    else if (testId === 'density' && typeof initDensityTab === 'function')
+      initDensityTab(panel);
   });
 }
 

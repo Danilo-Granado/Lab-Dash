@@ -77,6 +77,15 @@ def profiles():
     return jsonify(data)
 
 
+# ── Picnometers ────────────────────────────────────────────────────────────────
+
+@api_bp.route("/picnometers", methods=["GET"])
+def picnometers():
+    """Return the picnometer list defined in equipment/density.py."""
+    from equipment.density import PICNOMETERS
+    return jsonify(PICNOMETERS)
+
+
 # ── Specs ──────────────────────────────────────────────────────────────────────
 
 @api_bp.route("/specs/<profile_key>/<test_id>", methods=["GET"])

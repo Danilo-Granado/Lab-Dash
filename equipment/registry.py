@@ -13,10 +13,12 @@ equipment from this registry automatically.
 
 from equipment.moisture  import MoistureAnalyzer
 from equipment.viscosity import ViscosityMeter
+from equipment.density   import DensityMeter
 
 REGISTRY: dict[str, type] = {
     "moisture":  MoistureAnalyzer,
     "viscosity": ViscosityMeter,
+    "density":   DensityMeter,
 }
 
 
