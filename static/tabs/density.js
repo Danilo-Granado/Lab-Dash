@@ -270,7 +270,10 @@ async function _densSave() {
     await apiPost('/storage/save', {
       po_number:              po,
       test_id:                'density',
-      values:                 _densLastResult,
+      values: {
+        density:       _densLastResult.density_g_ml,
+        picnometer_id: _densLastResult.picnometer_id,
+      },
       notes,
       approval_status,
       override_justification,
