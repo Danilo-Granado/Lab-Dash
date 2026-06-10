@@ -79,6 +79,11 @@ function initDensityTab(panel) {
     <div class="card" id="dens-result-card" style="display:none;">
       <div class="card-title">Result</div>
 
+      <!-- QC verdict banner — populated by _densShowResult -->
+      <div id="dens-qc-banner" style="display:none; align-items:center; gap:10px;
+           padding:10px 14px; background:var(--surface2); border-radius:var(--radius);
+           border:1px solid var(--border); margin-bottom:16px;"></div>
+
       <div style="margin-bottom:20px;">
         <span class="readout" id="dens-readout">—</span>
         <span class="readout-unit">g/mL</span>
@@ -128,6 +133,7 @@ function initDensityTab(panel) {
 
 let _densPicnometers = [];
 let _densLastResult  = null;
+let _densLastQC      = null;
 
 // ── Picnometer loading ────────────────────────────────────────────────────────
 
@@ -159,7 +165,7 @@ function _densOnPicnometerChange() {
 
 // ── Calculation ───────────────────────────────────────────────────────────────
 
-function _densCalculate() {
+async function _densCalculate() {
   const picId = parseInt(document.getElementById('dens-picnometer').value);
   const gross = parseFloat(document.getElementById('dens-gross-weight').value);
 
@@ -187,15 +193,43 @@ function _densCalculate() {
     net_weight_g:           Math.round(net * 10000) / 10000,
   };
 
-  _densShowResult(_densLastResult);
+  // Fetch spec for the active profile
+  let qc = { status: 'approved', label: 'No Spec — Pass-through', color: 'var(--text-muted)', inRange: true, spec: null };
+  try {
+    const session = await apiGet('/api/session');
+    const spec    = await apiGet(`/api/specs/${session.profile_key}/density`);
+    qc = evaluateQC(density, spec);
+  } catch (_) {}
+
+  _densLastQC = qc;
+  _densShowResult(_densLastResult, qc);
 }
 
-function _densShowResult(r) {
-  document.getElementById('dens-readout').textContent    = r.density_g_ml;
+function _densShowResult(r, qc) {
+  const qcColor = qc.status === 'rejected' ? 'var(--red)' : (qc.spec && qc.spec.defined) ? 'var(--green)' : 'var(--text-muted)';
+
+  const readout = document.getElementById('dens-readout');
+  readout.textContent = r.density_g_ml;
+  readout.style.color = qcColor;
+
   document.getElementById('dens-res-gross').textContent  = r.gross_weight_g;
   document.getElementById('dens-res-picweight').textContent = r.picnometer_weight_g;
   document.getElementById('dens-res-net').textContent    = r.net_weight_g;
   document.getElementById('dens-res-vol').textContent    = r.picnometer_volume_ml;
+
+  // QC verdict banner
+  const banner = document.getElementById('dens-qc-banner');
+  if (banner) {
+    banner.style.display = 'flex';
+    banner.style.borderColor = qc.status === 'rejected' ? 'var(--red)' : 'var(--border)';
+    banner.innerHTML = `
+      <span style="font-size:20px; color:${qcColor}">${qc.status === 'rejected' ? '✗' : '✓'}</span>
+      <div>
+        <div style="font-weight:600; color:${qcColor}">${qc.status === 'rejected' ? 'REJECTED' : 'APPROVED'}</div>
+        <div style="font-size:12px; color:var(--text-muted)">${qc.label}</div>
+      </div>
+    `;
+  }
 
   document.getElementById('dens-result-card').style.display = 'block';
   document.getElementById('dens-save-btn').onclick    = _densSave;
@@ -228,11 +262,8 @@ async function _densSave() {
     'Volume':             `${_densLastResult.picnometer_volume_ml} mL`,
   };
 
-  // Density has no spec yet — always pass-through approved
-  const qc = { status: 'approved', label: 'No Spec — Pass-through', color: 'var(--text-muted)', inRange: true, spec: null };
-
   const { confirmed, notes, approval_status, override_justification } =
-    await showSaveModal('Density', rows, qc);
+    await showSaveModal('Density', rows, _densLastQC);
   if (!confirmed) return;
 
   try {
