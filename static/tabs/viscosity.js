@@ -91,30 +91,37 @@ function initViscosityTab(panel) {
     <!-- Live readout ─────────────────────────────────────────────────── -->
     <div class="card">
       <div class="card-title">Viscosity Reading</div>
-      <div style="margin-bottom:20px;">
-        <span class="readout" id="visc-readout">—</span>
-        <span class="readout-unit">mPa·s</span>
-        <div class="readout-label" id="visc-readout-label">Waiting for test start</div>
-      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:start;">
 
-      <!-- Stability progress -->
-      <div style="max-width:480px;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
-          <span class="text-muted">Stability</span>
-          <span id="visc-stable-label" class="text-muted">—</span>
-        </div>
-        <div class="stability-bar-track">
-          <div class="stability-bar-fill" id="visc-stable-bar" style="width:0%"></div>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
-          <span>Unstable</span>
-          <span id="visc-stable-time">0s / 15s</span>
-          <span>Stable ✓</span>
-        </div>
-      </div>
+        <!-- Left: numeric readout + stability -->
+        <div>
+          <div style="margin-bottom:20px;">
+            <span class="readout" id="visc-readout">—</span>
+            <span class="readout-unit">mPa·s</span>
+            <div class="readout-label" id="visc-readout-label">Waiting for test start</div>
+          </div>
 
-      <!-- Mini log -->
-      <div class="mini-log" id="visc-log"></div>
+          <div style="max-width:480px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+              <span class="text-muted">Stability</span>
+              <span id="visc-stable-label" class="text-muted">—</span>
+            </div>
+            <div class="stability-bar-track">
+              <div class="stability-bar-fill" id="visc-stable-bar" style="width:0%"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:11px; color:var(--text-muted);">
+              <span>Unstable</span>
+              <span id="visc-stable-time">0s / 15s</span>
+              <span>Stable ✓</span>
+            </div>
+          </div>
+
+        <!-- Right: live chart -->
+        <div style="position:relative; height:200px;">
+          <canvas id="visc-chart"></canvas>
+        </div>
+
+      </div>
     </div>
 
     <!-- Result (shown after final reading) ─────────────────────────── -->
@@ -184,6 +191,104 @@ async function _viscLoadProfileDefaults() {
 // ── Last final reading — held for save ───────────────────────────────────────
 let _viscLastFinal = null;
 
+// ── Chart ─────────────────────────────────────────────────────────────────────
+const VISC_CHART_WINDOW_S = 60;   // ← change this to adjust the rolling window
+let _viscChart      = null;
+let _viscChartData  = [];         // { t: elapsed_s, v: viscosity }
+let _viscTestStart  = null;
+
+function _viscInitChart() {
+  const existing = Chart.getChart('visc-chart');
+  if (existing) existing.destroy();
+
+  _viscChartData = [];
+  _viscTestStart = Date.now();
+
+  const ctx = document.getElementById('visc-chart').getContext('2d');
+  _viscChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [
+        {
+          label: 'Viscosity (mPa·s)',
+          data: [],
+          borderColor:     '#2a6dd9',
+          backgroundColor: 'rgba(42,109,217,0.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: true,
+        },
+        // Invisible dataset used only to paint the stable background region
+        {
+          label: '_stable_fill',
+          data: [],
+          borderWidth: 0,
+          pointRadius: 0,
+          fill: false,
+          hidden: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.parsed.y.toFixed(2)} mPa·s`,
+            title: ctx => `t = ${ctx[0].parsed.x}s`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display: true, text: 'Time (s)', color: '#64748b', font: { size: 11 } },
+          ticks: { color: '#64748b', font: { size: 10 } },
+          grid:  { color: 'rgba(255,255,255,0.05)' },
+          min: 0,
+        },
+        y: {
+          title: { display: true, text: 'mPa·s', color: '#64748b', font: { size: 11 } },
+          ticks: { color: '#64748b', font: { size: 10 } },
+          grid:  { color: 'rgba(255,255,255,0.05)' },
+        },
+      },
+    },
+  });
+}
+
+function _viscChartPush(viscosity, isStable) {
+  if (!_viscChart) return;
+
+  const elapsed = Math.round((Date.now() - _viscTestStart) / 1000);
+  _viscChartData.push({ t: elapsed, v: viscosity, stable: isStable });
+
+  // Trim to rolling window
+  const cutoff = elapsed - VISC_CHART_WINDOW_S;
+  _viscChartData = _viscChartData.filter(d => d.t >= cutoff);
+
+  // Main viscosity line
+  _viscChart.data.datasets[0].data = _viscChartData.map(d => ({ x: d.t, y: d.v }));
+
+  // Stable background annotation via chartArea plugin
+  // Build green fill segments for stable stretches using point background colors
+  _viscChart.data.datasets[0].pointBackgroundColor = _viscChartData.map(d =>
+    d.stable ? 'rgba(29,158,117,0.9)' : 'rgba(42,109,217,0.0)'
+  );
+  _viscChart.data.datasets[0].pointRadius = _viscChartData.map(d => d.stable ? 3 : 0);
+
+  // Slide the x-axis window
+  const xMin = Math.max(0, elapsed - VISC_CHART_WINDOW_S);
+  _viscChart.options.scales.x.min = xMin;
+  _viscChart.options.scales.x.max = xMin + VISC_CHART_WINDOW_S;
+
+  _viscChart.update('none');  // 'none' skips animation for live updates
+}
+
 async function _viscStart() {
   const mode    = document.getElementById('visc-mode').value;
   const spindle = parseInt(document.getElementById('visc-spindle').value);
@@ -206,6 +311,7 @@ async function _viscStart() {
   document.getElementById('visc-result-card').style.display = 'none';
   _viscLastFinal = null;
   _viscLog('Test started.', 'ok');
+  _viscInitChart();
 
   // Open SSE stream
   if (_viscSource) _viscSource.close();
@@ -237,6 +343,7 @@ function _viscOnEvent(event) {
 
   // Main readout
   document.getElementById('visc-readout').textContent = d.viscosity ?? '—';
+  if (d.viscosity != null) _viscChartPush(d.viscosity, event.stable);
   document.getElementById('visc-readout-label').textContent = event.stable ? '● Stable' : '○ Measuring…';
   document.getElementById('visc-readout-label').style.color = event.stable ? 'var(--green)' : 'var(--text-muted)';
 
