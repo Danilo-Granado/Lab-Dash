@@ -242,8 +242,8 @@ class ViscosityMeter(EquipmentBase):
 
                 if ready_to_stop:
                     self._running = False
-                    yield Reading(values=values, stable=True, final=True)
                     self.stop_test()
+                    yield Reading(values=values, stable=True, final=True)
                     return
 
                 yield Reading(values=values, stable=is_stable, final=False)

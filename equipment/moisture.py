@@ -122,6 +122,7 @@ class MoistureAnalyzer(EquipmentBase):
                 if self._is_complete(lines):
                     final = self._parse_end_block(lines)
                     self._running = False
+                    self.stop_test()
                     yield Reading(
                         values={
                             "moisture_pct":    final.get("final_moisture_pct"),
