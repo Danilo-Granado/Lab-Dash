@@ -225,6 +225,11 @@ function _formatResult(testId, vals) {
     const r = vals.speed_rpm != null ? ` @ ${vals.speed_rpm} RPM` : '';
     return `${v}${r}`;
   }
+  if (testId === 'density') {
+    const d = vals.density != null ? `${vals.density} g/mL` : '—';
+    const p = vals.picnometer_id != null ? ` (ID: ${vals.picnometer_id})` : '';
+    return `${d}${p}`;
+  }
   // Generic fallback for future equipment
   return Object.entries(vals)
     .filter(([, v]) => v != null)
