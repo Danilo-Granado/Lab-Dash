@@ -25,9 +25,6 @@ state = {
     # Live driver instances keyed by test_id
     # { "moisture": MoistureAnalyzer instance | None, ... }
     "drivers": {},
-
-    # Streaming threads keyed by test_id
-    "threads": {},
 }
 
 

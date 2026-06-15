@@ -289,7 +289,7 @@ function _renderTestChecks(equipList, activeTests) {
     `;
     // Switching to Custom profile when user manually changes checkboxes
     label.querySelector('input').addEventListener('change', () => {
-      document.getElementById('ov-profile').value = '';
+      _selectProfile('');
     });
     container.appendChild(label);
   });

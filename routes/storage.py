@@ -65,10 +65,11 @@ def save():
 
 @storage_bp.route("/results", methods=["GET"])
 def results():
-    po_number = request.args.get("po_number") or None
-    test_id   = request.args.get("test_id")   or None
+    po_number    = request.args.get("po_number") or None
+    test_id      = request.args.get("test_id")   or None
+    product_name = request.args.get("product_name") or None
     try:
-        rows = get_results(po_number=po_number, test_id=test_id)
+        rows = get_results(po_number=po_number, test_id=test_id, product_name=product_name)
         return jsonify(rows)
     except Exception as e:
         logger.error(f"[Storage] fetch error: {e}")

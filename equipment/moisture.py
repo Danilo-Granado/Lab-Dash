@@ -41,7 +41,6 @@ class MoistureAnalyzer(EquipmentBase):
         self._running      = False
         self._last_error: str | None = None
         self._started_at: str | None = None
-        self._last_poll_lines: list[str] = []
 
     # ── Configuration ─────────────────────────────────────────────────────────
 
@@ -117,7 +116,6 @@ class MoistureAnalyzer(EquipmentBase):
                 self._send("P")
                 time.sleep(1.0)
                 lines = self._read_all_lines()
-                self._last_poll_lines = lines
 
                 if self._is_complete(lines):
                     final = self._parse_end_block(lines)
