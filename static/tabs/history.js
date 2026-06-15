@@ -18,6 +18,10 @@ function initHistoryTab() {
           <label class="field-label">Filter by PO</label>
           <input id="hist-po-filter" class="field-input" placeholder="PO number…" />
         </div>
+        <div style="flex:1; min-width:160px;">
+          <label class="field-label">Filter by Product</label>
+          <input id="hist-prod-filter" class="field-input" placeholder="Product name…" />
+        </div>
         <div style="min-width:160px;">
           <label class="field-label">Filter by Test</label>
           <select id="hist-test-filter" class="field-select">
@@ -100,10 +104,14 @@ function initHistoryTab() {
   document.getElementById('hist-refresh-btn').addEventListener('click', _histLoad);
   document.getElementById('hist-clear-filter-btn').addEventListener('click', () => {
     document.getElementById('hist-po-filter').value = '';
+    document.getElementById('hist-prod-filter').value = '';
     document.getElementById('hist-test-filter').value = '';
     _histLoad();
   });
   document.getElementById('hist-po-filter').addEventListener('keydown', e => {
+    if (e.key === 'Enter') _histLoad();
+  });
+  document.getElementById('hist-prod-filter').addEventListener('keydown', e => {
     if (e.key === 'Enter') _histLoad();
   });
   document.getElementById('hist-test-filter').addEventListener('change', _histLoad);
@@ -127,10 +135,12 @@ function initHistoryTab() {
 
 async function _histLoad() {
   const po     = document.getElementById('hist-po-filter')?.value.trim() || '';
+  const prod   = document.getElementById('hist-prod-filter')?.value.trim() || '';
   const testId = document.getElementById('hist-test-filter')?.value || '';
 
   const params = new URLSearchParams();
   if (po)     params.set('po_number', po);
+  if (prod)   params.set('product_name', prod);
   if (testId) params.set('test_id', testId);
 
   try {

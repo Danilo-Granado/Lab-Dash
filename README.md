@@ -76,16 +76,29 @@ lab_dashboard/
 
 ## Standard profiles.json
 
-```
+```json
 {
-  "product_b": {
-    "display_name": "Product B",
-    "tests": ["moisture"]
+  "product_a": {
+    "display_name": "Product A",
+    "product_code": "P-100",
+    "registry_number": "REG-001",
+    "client": "Acme Corp",
+    "tests": ["moisture", "density"],
+    "specs": {
+      "moisture": { "min": 2.0, "max": 5.5 },
+      "density": { "min": 0.85, "max": 0.95 }
+    }
   },
 
-  "product_c": {
-    "display_name": "Product C",
-    "tests": ["viscosity"]
+  "product_b": {
+    "display_name": "Product B",
+    "product_code": "P-200",
+    "registry_number": "REG-002",
+    "client": "Globex",
+    "tests": ["viscosity"],
+    "specs": {
+      "viscosity": { "min": 1000, "max": 2500 }
+    }
   }
 }
 ```

@@ -100,12 +100,13 @@ async function applySession({ poNumber, selectedTests, profileKey, productName }
   selectedTests.forEach(testId => {
     const panel = document.getElementById(`panel-${testId}`);
     if (!panel) return;
-    if (testId === 'viscosity' && typeof initViscosityTab === 'function')
-      initViscosityTab(panel);
-    else if (testId === 'moisture' && typeof initMoistureTab === 'function')
-      initMoistureTab(panel);
-    else if (testId === 'density' && typeof initDensityTab === 'function')
-      initDensityTab(panel);
+
+    // Dynamically call init function: init<TestId>Tab(panel)
+    // e.g. initViscosityTab, initMoistureTab
+    const funcName = 'init' + testId.charAt(0).toUpperCase() + testId.slice(1) + 'Tab';
+    if (typeof window[funcName] === 'function') {
+      window[funcName](panel);
+    }
   });
 }
 

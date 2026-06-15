@@ -106,9 +106,13 @@ def save_result(
     return row
 
 
-def get_results(po_number: str | None = None, test_id: str | None = None) -> list[dict]:
+def get_results(
+    po_number: str | None = None,
+    test_id: str | None = None,
+    product_name: str | None = None
+) -> list[dict]:
     """
-    Read results from the CSV, optionally filtered by PO and/or test_id.
+    Read results from the CSV, optionally filtered by PO, test_id and/or product_name.
     Returns a list of dicts with result_json parsed back to dict.
     Results are returned newest-first.
     """
@@ -118,9 +122,11 @@ def get_results(po_number: str | None = None, test_id: str | None = None) -> lis
     with open(CSV_PATH, newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if po_number and row["po_number"] != po_number:
+            if po_number and po_number.lower() not in row.get("po_number", "").lower():
                 continue
             if test_id and row["test_id"] != test_id:
+                continue
+            if product_name and product_name.lower() not in row.get("product_name", "").lower():
                 continue
             try:
                 row["values"] = json.loads(row["result_json"])
