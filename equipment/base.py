@@ -86,6 +86,14 @@ class EquipmentBase(ABC):
     def is_connected(self) -> bool:
         ...
 
+    @abstractmethod
+    def check_connection(self) -> bool:
+        """
+        Actively check if the device is responding.
+        Should return True if OK, False or raise Exception if disconnected.
+        """
+        ...
+
     # ── Test control ──────────────────────────────────────────────────────────
 
     @abstractmethod

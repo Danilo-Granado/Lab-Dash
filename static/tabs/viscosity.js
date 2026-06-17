@@ -145,6 +145,14 @@ function initViscosityTab(panel) {
   document.getElementById('visc-start-btn').addEventListener('click', _viscStart);
   document.getElementById('visc-stop-btn').addEventListener('click',  _viscStop);
 
+  window.addEventListener('equipment-disconnected', e => {
+    if (e.detail.testId === 'viscosity') {
+      _viscAlert('error', 'Device disconnected. Test stopped.');
+      _viscResetControls();
+      if (_viscSource) { _viscSource.close(); _viscSource = null; }
+    }
+  });
+
   // Render product summary card and load default settings from profile
   renderProductSummaryCard(document.getElementById('visc-product-body'), 'viscosity')
     .then(() => {

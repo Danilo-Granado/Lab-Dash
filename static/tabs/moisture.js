@@ -92,6 +92,17 @@ function initMoistureTab(panel) {
   document.getElementById('moist-start-btn').addEventListener('click', _moistStart);
   document.getElementById('moist-stop-btn').addEventListener('click',  _moistStop);
 
+  window.addEventListener('equipment-disconnected', e => {
+    if (e.detail.testId === 'moisture') {
+      _moistAlert('error', 'Device disconnected. Test stopped.');
+      _moistResetControls();
+      clearInterval(_moistClockInterval);
+      document.getElementById('moist-phase').textContent = 'Disconnected.';
+      document.getElementById('moist-phase').style.color = 'var(--red)';
+      if (_moistSource) { _moistSource.close(); _moistSource = null; }
+    }
+  });
+
   // Render product summary card
   renderProductSummaryCard(document.getElementById('moist-product-body'), 'moisture')
     .then(() => {

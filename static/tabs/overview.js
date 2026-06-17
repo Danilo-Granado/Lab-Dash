@@ -77,6 +77,8 @@ function initOverviewTab() {
   _loadProfiles();
   _loadEquipment();
 
+  window._onStatusUpdate = _updateEquipmentRowStatus;
+
   _initProfileCombobox();
   document.getElementById('ov-start-session').addEventListener('click', _onStartSession);
   document.getElementById('ov-clear-session').addEventListener('click', _onClearSession);
@@ -425,34 +427,25 @@ async function _disconnect(testId) {
   }
 }
 
-// ── Status polling ────────────────────────────────────────────────────────────
+// ── Status updates (called by app.js) ──────────────────────────────────────────
 
-function _pollStatus() {
-  async function tick() {
-    try {
-      const status = await apiGet('/api/status');
-      Object.entries(status).forEach(([testId, s]) => {
-        const dot    = document.getElementById(`ov-dot-${testId}`);
-        const label  = document.getElementById(`ov-status-${testId}`);
-        const conBtn = document.getElementById(`ov-connect-${testId}`);
-        const disBtn = document.getElementById(`ov-disconnect-${testId}`);
-        if (!dot) return;
+function _updateEquipmentRowStatus(testId, s) {
+  const dot    = document.getElementById(`ov-dot-${testId}`);
+  const label  = document.getElementById(`ov-status-${testId}`);
+  const conBtn = document.getElementById(`ov-connect-${testId}`);
+  const disBtn = document.getElementById(`ov-disconnect-${testId}`);
+  if (!dot) return;
 
-        dot.className = 'status-dot ' + (
-          s.error       ? 'error' :
-          s.running     ? 'running' :
-          s.connected   ? 'connected' : 'disconnected'
-        );
-        label.textContent = s.error ? `Error` : s.running ? 'Running' : s.connected ? 'Connected' : 'Disconnected';
-        label.style.color = s.error ? 'var(--red)' : s.running ? 'var(--amber)' : s.connected ? 'var(--green)' : 'var(--text-muted)';
+  dot.className = 'status-dot ' + (
+    s.error       ? 'error' :
+    s.running     ? 'running' :
+    s.connected   ? 'connected' : 'disconnected'
+  );
+  label.textContent = s.error ? `Error` : s.running ? 'Running' : s.connected ? 'Connected' : 'Disconnected';
+  label.style.color = s.error ? 'var(--red)' : s.running ? 'var(--amber)' : s.connected ? 'var(--green)' : 'var(--text-muted)';
 
-        if (conBtn) conBtn.style.display = s.connected ? 'none' : 'inline-flex';
-        if (disBtn) disBtn.style.display = s.connected ? 'inline-flex' : 'none';
-      });
-    } catch (_) {}
-  }
-  tick();
-  setInterval(tick, 3000);
+  if (conBtn) conBtn.style.display = s.connected ? 'none' : 'inline-flex';
+  if (disBtn) disBtn.style.display = s.connected ? 'inline-flex' : 'none';
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
