@@ -309,6 +309,72 @@ document.getElementById('modal-backdrop').addEventListener('click', e => {
   }
 });
 
+// ── Status polling & Disconnect detection ─────────────────────────────────────
+
+let _previousStatus = {};
+
+function startStatusPolling() {
+  async function tick() {
+    try {
+      const status = await apiGet('/api/status');
+
+      const disconnectedDevices = [];
+
+      Object.entries(status).forEach(([testId, s]) => {
+        // 1. Detect transition to disconnected state
+        const wasConnected = _previousStatus[testId]?.connected;
+        if (wasConnected && !s.connected && testId !== 'density') {
+          // If we were connected and now we're not, it's an unexpected disconnect
+          disconnectedDevices.push(allEquipment.find(eq => eq.test_id === testId)?.display_name || testId);
+        }
+
+        // 2. Notify the Overview tab (if it has listeners)
+        if (window._onStatusUpdate) window._onStatusUpdate(testId, s);
+
+        // 3. Notify the active instrument tab (if it's the one that disconnected)
+        if (wasConnected && !s.connected) {
+          const event = new CustomEvent('equipment-disconnected', { detail: { testId } });
+          window.dispatchEvent(event);
+        }
+      });
+
+      // 4. Update global banner
+      const banner = document.getElementById('disconnect-banner');
+      const bannerText = document.getElementById('disconnect-banner-text');
+
+      if (disconnectedDevices.length > 0) {
+        bannerText.textContent = `Lost connection to: ${disconnectedDevices.join(', ')}.`;
+        banner.style.display = 'flex';
+      } else {
+        // If everything is back to normal or the user started fresh, hide banner?
+        // Actually, once a device is disconnected, s.connected stays false.
+        // We only show the banner if there ARE devices in a disconnected state that SHOULD be connected.
+        // The user must reconnect them in Overview, which will make s.connected true again.
+
+        const currentlyLost = Object.entries(status).filter(([tid, s]) => {
+          // A device is "lost" if it's not connected but is part of the active session
+          // and we know it's not a manual-entry device like density.
+          return !s.connected && activeTests.includes(tid) && tid !== 'density';
+        }).map(([tid, s]) => allEquipment.find(eq => eq.test_id === tid)?.display_name || tid);
+
+        if (currentlyLost.length > 0) {
+          bannerText.textContent = `Disconnected: ${currentlyLost.join(', ')}.`;
+          banner.style.display = 'flex';
+        } else {
+          banner.style.display = 'none';
+        }
+      }
+
+      _previousStatus = status;
+    } catch (e) {
+      console.warn('Status poll failed:', e);
+    }
+  }
+
+  tick();
+  setInterval(tick, 3000);
+}
+
 // ── Clock ─────────────────────────────────────────────────────────────────────
 
 function startClock() {
@@ -328,6 +394,7 @@ async function boot() {
   try {
     allEquipment = await apiGet('/api/equipment');
     injectEquipmentTabs(allEquipment);
+    startStatusPolling();
   } catch (e) {
     console.error('Failed to load equipment list:', e);
   }

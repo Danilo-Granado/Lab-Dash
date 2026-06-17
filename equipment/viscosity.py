@@ -106,6 +106,16 @@ class ViscosityMeter(EquipmentBase):
     def is_connected(self) -> bool:
         return self._ser is not None and self._ser.is_open
 
+    def check_connection(self) -> bool:
+        if not self.is_connected():
+            return False
+        try:
+            # Query the speed as a heartbeat
+            self._query(CMD_READ_SPEED)
+            return True
+        except (serial.SerialException, ValueError, RuntimeError):
+            return False
+
     # ── Test control ──────────────────────────────────────────────────────────
 
     def start_test(self, **kwargs) -> None:
@@ -251,6 +261,14 @@ class ViscosityMeter(EquipmentBase):
             except Exception as e:
                 self._last_error = str(e)
                 logger.error(f"[Viscosity] Read error: {e}")
+
+                # Check if this was a fatal communication error
+                if not self.check_connection():
+                    self._running = False
+                    # We don't call disconnect() here as the API/UI will handle the transition
+                    yield Reading(values={}, error="Device disconnected")
+                    return
+
                 yield Reading(values={}, error=str(e))
 
             # ── Maintain poll interval ─────────────────────────────────────────

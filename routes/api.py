@@ -178,6 +178,17 @@ def start():
 
     if not driver:
         return jsonify({"ok": False, "error": "Not connected"}), 400
+
+    # Actively check connection before starting
+    if not driver.check_connection():
+        # Auto-disconnect if it's dead
+        try:
+            driver.disconnect()
+        except Exception:
+            pass
+        ss.clear_driver(test_id)
+        return jsonify({"ok": False, "error": "Device not responding. Please reconnect in Overview."}), 400
+
     if driver._running:
         return jsonify({"ok": False, "error": "Already running"}), 400
 
@@ -211,6 +222,19 @@ def status():
     for eq in list_equipment():
         tid    = eq["test_id"]
         driver = ss.get_driver(tid)
+        if driver:
+            # Actively check connection if we think we're connected
+            if tid != "density" and not driver.check_connection():
+                logger.warning(f"[API] status: Device {tid} lost connection. Cleaning up.")
+                try:
+                    if driver._running:
+                        driver.stop_test()
+                    driver.disconnect()
+                except Exception:
+                    pass
+                ss.clear_driver(tid)
+                driver = None
+
         if driver:
             s = driver.get_status()
             result[tid] = {

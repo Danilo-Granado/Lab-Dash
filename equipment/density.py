@@ -80,6 +80,9 @@ class DensityMeter(EquipmentBase):
     def is_connected(self) -> bool:
         return True  # manual input is always available
 
+    def check_connection(self) -> bool:
+        return True
+
     def start_test(self, **kwargs) -> None:
         self._running = True
 
